@@ -1,7 +1,7 @@
 import { eq, desc, and, sql, gte, lte, sum } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { 
-  InsertUser, 
+// Ajuste: separar imports de tipos para evitar erro de runtime (Node tentando importar tipos que não existem em JS)
+import {
   users,
   actionCategories,
   actionTypes,
@@ -12,7 +12,10 @@ import {
   redemptions,
   notifications,
   badges,
-  userBadges,
+  userBadges
+} from "../drizzle/schema";
+import type {
+  InsertUser,
   InsertActionCategory,
   InsertActionType,
   InsertUserAction,
@@ -127,7 +130,7 @@ export async function updateUserTokens(userId: number, tokensToAdd: number) {
   if (!db) return;
 
   await db.update(users)
-    .set({ 
+    .set({
       tokens: sql`${users.tokens} + ${tokensToAdd}`,
       updatedAt: new Date()
     })
@@ -139,7 +142,7 @@ export async function updateUserImpact(userId: number, impactToAdd: number) {
   if (!db) return;
 
   await db.update(users)
-    .set({ 
+    .set({
       totalImpact: sql`${users.totalImpact} + ${impactToAdd}`,
       updatedAt: new Date()
     })
@@ -314,12 +317,12 @@ export async function getUserActions(userId: number, limit: number = 50) {
     actionTypeDescription: actionTypes.description,
     categoryName: actionCategories.name,
   })
-  .from(userActions)
-  .leftJoin(actionTypes, eq(userActions.actionTypeId, actionTypes.id))
-  .leftJoin(actionCategories, eq(actionTypes.categoryId, actionCategories.id))
-  .where(eq(userActions.userId, userId))
-  .orderBy(desc(userActions.createdAt))
-  .limit(limit);
+    .from(userActions)
+    .leftJoin(actionTypes, eq(userActions.actionTypeId, actionTypes.id))
+    .leftJoin(actionCategories, eq(actionTypes.categoryId, actionCategories.id))
+    .where(eq(userActions.userId, userId))
+    .orderBy(desc(userActions.createdAt))
+    .limit(limit);
 }
 
 export async function getUserActionsInPeriod(userId: number, startDate: Date, endDate: Date) {
@@ -382,18 +385,18 @@ export async function getUserChallenges(userId: number) {
     currentProgress: userChallenges.currentProgress,
     isCompleted: userChallenges.isCompleted,
     completedAt: userChallenges.completedAt,
-    createdAt: userChallenges.createdAt,
+    createdAt: userChallenges.joinedAt, // ajuste: tabela tem 'joinedAt' em vez de 'createdAt'
     challengeTitle: challenges.title,
     challengeDescription: challenges.description,
-    challengeType: challenges.type,
+    challengeType: challenges.difficulty, // ajuste: coluna 'type' não existe; usar 'difficulty'
     targetValue: challenges.targetValue,
     tokensReward: challenges.tokensReward,
     endDate: challenges.endDate,
   })
-  .from(userChallenges)
-  .leftJoin(challenges, eq(userChallenges.challengeId, challenges.id))
-  .where(eq(userChallenges.userId, userId))
-  .orderBy(desc(userChallenges.createdAt));
+    .from(userChallenges)
+    .leftJoin(challenges, eq(userChallenges.challengeId, challenges.id))
+    .where(eq(userChallenges.userId, userId))
+    .orderBy(desc(userChallenges.joinedAt)); // ajuste: ordenar por joinedAt
 }
 
 export async function getUserChallengeByIds(userId: number, challengeId: number) {
@@ -424,7 +427,7 @@ export async function updateChallengeProgress(userId: number, challengeId: numbe
   if (!db) return;
 
   await db.update(userChallenges)
-    .set({ 
+    .set({
       currentProgress: progress
     })
     .where(and(
@@ -438,7 +441,7 @@ export async function completeChallengeForUser(userId: number, challengeId: numb
   if (!db) return;
 
   await db.update(userChallenges)
-    .set({ 
+    .set({
       isCompleted: true,
       completedAt: new Date()
     })
@@ -481,7 +484,7 @@ export async function updateProductStock(productId: number, quantity: number) {
   if (!db) return;
 
   await db.update(products)
-    .set({ 
+    .set({
       stock: sql`${products.stock} + ${quantity}`
     })
     .where(eq(products.id, productId));
@@ -505,18 +508,18 @@ export async function getUserRedemptions(userId: number) {
     id: redemptions.id,
     userId: redemptions.userId,
     productId: redemptions.productId,
-    tokensSpent: redemptions.tokensSpent,
+    tokensSpent: redemptions.tokensCost, // ajuste: coluna é tokensCost
     status: redemptions.status,
     redemptionCode: redemptions.redemptionCode,
     createdAt: redemptions.createdAt,
-    updatedAt: redemptions.updatedAt,
+    updatedAt: redemptions.deliveredAt, // ajuste: não existe updatedAt, usar deliveredAt para manter chave
     productName: products.name,
     productImage: products.imageUrl,
   })
-  .from(redemptions)
-  .leftJoin(products, eq(redemptions.productId, products.id))
-  .where(eq(redemptions.userId, userId))
-  .orderBy(desc(redemptions.createdAt));
+    .from(redemptions)
+    .leftJoin(products, eq(redemptions.productId, products.id))
+    .where(eq(redemptions.userId, userId))
+    .orderBy(desc(redemptions.createdAt));
 }
 
 // ========== NOTIFICATIONS ==========
@@ -591,12 +594,12 @@ export async function getUserBadges(userId: number) {
     earnedAt: userBadges.earnedAt,
     badgeName: badges.name,
     badgeDescription: badges.description,
-    badgeIcon: badges.icon,
+    badgeIcon: badges.iconUrl, // ajuste: coluna é iconUrl
   })
-  .from(userBadges)
-  .leftJoin(badges, eq(userBadges.badgeId, badges.id))
-  .where(eq(userBadges.userId, userId))
-  .orderBy(desc(userBadges.earnedAt));
+    .from(userBadges)
+    .leftJoin(badges, eq(userBadges.badgeId, badges.id))
+    .where(eq(userBadges.userId, userId))
+    .orderBy(desc(userBadges.earnedAt));
 }
 
 export async function awardBadgeToUser(userId: number, badgeId: number) {
@@ -663,7 +666,7 @@ export async function getTopUsers(limit: number = 10) {
     tokens: users.tokens,
     level: users.level,
   })
-  .from(users)
-  .orderBy(desc(users.totalImpact))
-  .limit(limit);
+    .from(users)
+    .orderBy(desc(users.totalImpact))
+    .limit(limit);
 }
