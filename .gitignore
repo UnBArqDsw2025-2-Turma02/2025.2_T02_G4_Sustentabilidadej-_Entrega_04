@@ -1,0 +1,21 @@
+# Node
+node_modules/
+npm-debug.log*
+pnpm-lock.yaml
+yarn.lock
+
+# Editor
+.vscode/
+
+# Env
+.env
+backend/.env
+frontend/.env
+
+# Prisma SQLite
+backend/prisma/dev.db
+backend/prisma/dev.db-journal
+
+# Build outputs
+dist/
+frontend/dist/
