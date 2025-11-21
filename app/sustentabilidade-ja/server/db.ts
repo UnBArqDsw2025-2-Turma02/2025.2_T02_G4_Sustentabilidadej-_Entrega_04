@@ -31,6 +31,24 @@ import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
+// Fallback em memória quando o banco não estiver disponível (ambiente de desenvolvimento)
+const _memUsers = new Map<number, { tokens: number; totalImpact: number; level: number }>();
+let _memActionId = 1;
+const _memActions: Array<{
+  id: number;
+  userId: number;
+  actionTypeId: number;
+  tokensEarned: number;
+  impactValue: number;
+  proofUrl: string | null;
+  notes: string | null;
+  status: 'approved';
+  createdAt: Date;
+  actionTypeName: string | null;
+  actionTypeDescription: string | null;
+  categoryName: string | null;
+}> = [];
+
 export async function getDb() {
   // Em desenvolvimento, ignore erro de conexão com banco
   if (!_db && process.env.DATABASE_URL && process.env.NODE_ENV !== "development") {
@@ -119,7 +137,10 @@ export async function getUserByOpenId(openId: string) {
 
 export async function getUserById(userId: number) {
   const db = await getDb();
-  if (!db) return undefined;
+  if (!db) {
+    const mem = _memUsers.get(userId) || { tokens: 0, totalImpact: 0, level: 1 };
+    return { id: userId, name: 'Usuário', tokens: mem.tokens, totalImpact: mem.totalImpact, level: mem.level } as any;
+  }
 
   const result = await db.select().from(users).where(eq(users.id, userId)).limit(1);
   return result.length > 0 ? result[0] : undefined;
@@ -127,7 +148,12 @@ export async function getUserById(userId: number) {
 
 export async function updateUserTokens(userId: number, tokensToAdd: number) {
   const db = await getDb();
-  if (!db) return;
+  if (!db) {
+    const mem = _memUsers.get(userId) || { tokens: 0, totalImpact: 0, level: 1 };
+    mem.tokens += tokensToAdd;
+    _memUsers.set(userId, mem);
+    return;
+  }
 
   await db.update(users)
     .set({
@@ -139,7 +165,12 @@ export async function updateUserTokens(userId: number, tokensToAdd: number) {
 
 export async function updateUserImpact(userId: number, impactToAdd: number) {
   const db = await getDb();
-  if (!db) return;
+  if (!db) {
+    const mem = _memUsers.get(userId) || { tokens: 0, totalImpact: 0, level: 1 };
+    mem.totalImpact += impactToAdd;
+    _memUsers.set(userId, mem);
+    return;
+  }
 
   await db.update(users)
     .set({
@@ -244,7 +275,26 @@ export async function createActionType(actionType: InsertActionType) {
 
 export async function createUserAction(action: InsertUserAction) {
   const db = await getDb();
-  if (!db) return null;
+  if (!db) {
+    const actionType = await getActionTypeById(action.actionTypeId);
+    const categories = await getAllActionCategories();
+    const categoryName = categories.find((c: any) => c.id === actionType?.categoryId)?.name || null;
+    _memActions.push({
+      id: _memActionId++,
+      userId: action.userId,
+      actionTypeId: action.actionTypeId,
+      tokensEarned: action.tokensEarned,
+      impactValue: action.impactValue,
+      proofUrl: action.proofUrl ?? null,
+      notes: action.notes ?? null,
+      status: 'approved',
+      createdAt: new Date(),
+      actionTypeName: actionType?.name ?? null,
+      actionTypeDescription: actionType?.description ?? null,
+      categoryName,
+    });
+    return { success: true } as any;
+  }
 
   const result = await db.insert(userActions).values(action);
   return result;
@@ -253,54 +303,37 @@ export async function createUserAction(action: InsertUserAction) {
 export async function getUserActions(userId: number, limit: number = 50) {
   const db = await getDb();
   if (!db) {
-    // Dados mockados para desenvolvimento
-    if (process.env.NODE_ENV === "development") {
-      return [
-        {
-          id: 1,
-          userId: userId,
-          actionTypeId: 1,
-          tokensEarned: 10,
-          impactValue: 500,
-          proofUrl: null,
-          notes: "Reciclei uma pilha de papéis do escritório",
-          status: "approved" as const,
-          createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000), // 1 dia atrás
-          actionTypeName: "Reciclar papel",
-          actionTypeDescription: "Separar e reciclar papel usado",
-          categoryName: "Reciclagem"
-        },
-        {
-          id: 2,
-          userId: userId,
-          actionTypeId: 3,
-          tokensEarned: 25,
-          impactValue: 1200,
-          proofUrl: null,
-          notes: null,
-          status: "approved" as const,
-          createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 dias atrás
-          actionTypeName: "Usar lâmpada LED",
-          actionTypeDescription: "Trocar lâmpadas por LED",
-          categoryName: "Energia"
-        },
-        {
-          id: 3,
-          userId: userId,
-          actionTypeId: 4,
-          tokensEarned: 20,
-          impactValue: 2000,
-          proofUrl: null,
-          notes: "Fui ao trabalho de ônibus hoje",
-          status: "approved" as const,
-          createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3 dias atrás
-          actionTypeName: "Usar transporte público",
-          actionTypeDescription: "Utilizar transporte público em vez de carro",
-          categoryName: "Transporte"
-        }
+    // se ainda não houver ações do usuário na memória, semear 3 ações padrão (compatível com UI atual)
+    let actions = _memActions.filter(a => a.userId === userId);
+    if (actions.length === 0) {
+      const defaults = [
+        { actionTypeId: 1, tokensEarned: 10, impactValue: 500, notes: 'Reciclei uma pilha de papéis do escritório', atName: 'Reciclar papel', atDesc: 'Separar e reciclar papel usado', catName: 'Reciclagem' },
+        { actionTypeId: 3, tokensEarned: 25, impactValue: 1200, notes: null as string | null, atName: 'Usar lâmpada LED', atDesc: 'Trocar lâmpadas por LED', catName: 'Energia' },
+        { actionTypeId: 4, tokensEarned: 20, impactValue: 2000, notes: 'Fui ao trabalho de ônibus hoje', atName: 'Usar transporte público', atDesc: 'Utilizar transporte público em vez de carro', catName: 'Transporte' },
       ];
+      defaults.forEach((d, idx) => {
+        _memActions.push({
+          id: _memActionId++,
+          userId,
+          actionTypeId: d.actionTypeId,
+          tokensEarned: d.tokensEarned,
+          impactValue: d.impactValue,
+          proofUrl: null,
+          notes: d.notes,
+          status: 'approved',
+          createdAt: new Date(Date.now() - (idx + 1) * 24 * 60 * 60 * 1000),
+          actionTypeName: d.atName,
+          actionTypeDescription: d.atDesc,
+          categoryName: d.catName,
+        });
+      });
+      const mem = _memUsers.get(userId) || { tokens: 0, totalImpact: 0, level: 1 };
+      mem.tokens += defaults.reduce((s, d) => s + d.tokensEarned, 0);
+      mem.totalImpact += defaults.reduce((s, d) => s + d.impactValue, 0);
+      _memUsers.set(userId, mem);
+      actions = _memActions.filter(a => a.userId === userId);
     }
-    return [];
+    return actions.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()).slice(0, limit);
   }
 
   return await db.select({
@@ -646,15 +679,17 @@ export async function getCommunityStats() {
 export async function getTopUsers(limit: number = 10) {
   const db = await getDb();
   if (!db) {
-    // Dados mockados para desenvolvimento
     if (process.env.NODE_ENV === "development") {
-      return [
+      const list = [
         { id: 1, name: "Gustavo Teste", totalImpact: 3700, tokens: 55, level: 1 },
         { id: 2, name: "Ana Silva", totalImpact: 5200, tokens: 78, level: 2 },
         { id: 3, name: "João Santos", totalImpact: 4800, tokens: 72, level: 2 },
         { id: 4, name: "Maria Oliveira", totalImpact: 4300, tokens: 65, level: 1 },
         { id: 5, name: "Pedro Costa", totalImpact: 3900, tokens: 58, level: 1 },
-      ].slice(0, limit);
+      ];
+      return list
+        .sort((a, b) => (b.tokens ?? 0) - (a.tokens ?? 0) || (b.totalImpact ?? 0) - (a.totalImpact ?? 0))
+        .slice(0, limit);
     }
     return [];
   }
@@ -667,6 +702,9 @@ export async function getTopUsers(limit: number = 10) {
     level: users.level,
   })
     .from(users)
-    .orderBy(desc(users.totalImpact))
+    .orderBy(
+      desc(users.tokens),
+      desc(users.totalImpact)
+    )
     .limit(limit);
 }

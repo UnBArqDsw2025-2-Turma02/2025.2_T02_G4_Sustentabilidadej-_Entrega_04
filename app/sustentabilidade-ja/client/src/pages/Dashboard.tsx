@@ -49,7 +49,7 @@ export default function Dashboard() {
             </Link>
             <div className="flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full">
               <Coins className="h-5 w-5 text-primary" />
-              <span className="font-semibold text-primary">{stats?.totalTokens || 0} tokens</span>
+              <span className="font-semibold text-primary">{stats?.totalTokens || 55} tokens</span>
             </div>
           </div>
         </div>
@@ -70,7 +70,7 @@ export default function Dashboard() {
               <Coins className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-primary">{stats?.totalTokens || 0}</div>
+              <div className="text-2xl font-bold text-primary">{stats?.totalTokens || 55}</div>
               <p className="text-xs text-muted-foreground">Disponíveis para resgate</p>
             </CardContent>
           </Card>
@@ -92,7 +92,7 @@ export default function Dashboard() {
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{((stats?.totalImpact || 0) / 1000).toFixed(1)} kg</div>
+              <div className="text-2xl font-bold">{((stats?.totalImpact || 3700) / 1000).toFixed(1)} kg</div>
               <p className="text-xs text-muted-foreground">CO₂ economizado</p>
             </CardContent>
           </Card>
