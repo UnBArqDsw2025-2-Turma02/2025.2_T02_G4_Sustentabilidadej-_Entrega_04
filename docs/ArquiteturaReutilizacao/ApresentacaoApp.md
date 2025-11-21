@@ -127,11 +127,16 @@ O SustentabilidadeJá é uma plataforma que transforma ações sustentáveis em 
 ## 12. Vídeo de Apresentação
 Assista à demonstração completa do aplicativo (fluxo de uso, registro de ações, desafios e marketplace):
 
-[▶️ Ver no YouTube – SustentabilidadeJá](https://youtu.be/ONSV-FCXaQs)
-
 <div align="center">
-	<!-- Espaço reservado para embed (caso a plataforma permita iframe) -->
-	<!-- Exemplo: <iframe width="560" height="315" src="https://www.youtube.com/embed/ONSV-FCXaQs" title="Demonstração SustentabilidadeJá" frameborder="0" allowfullscreen></iframe> -->
+  <iframe 
+    width="560" 
+    height="700" 
+    src="https://www.youtube.com/embed/ONSV-FCXaQs" 
+    title="SustentabilidadeJá – Demonstração"
+    frameborder="0"
+    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+    allowfullscreen>
+  </iframe>
 </div>
 
 ---
