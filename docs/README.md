@@ -31,4 +31,4 @@ Quaisquer outras informações adicionais podem ser descritas nessa seção.
 
 | Versão | Descrição                            | Autor(es)                                                                                         | Data       | Revisor(es)                                                                                                 | Data de Revisão |
 | ------ | ------------------------------------ | ------------------------------------------------------------------------------------------------- | ---------- | ----------------------------------------------------------------------------------------------------------- | --------- |
-| 1.0    | Criação do documento | [Gustavo Gontijo Lima](https://https://github.com/Guga301104) | 21/11/2025| | |
+| 1.0    | Criação do documento | [Gustavo Gontijo Lima](https://github.com/Guga301104) | 21/11/2025| | |
